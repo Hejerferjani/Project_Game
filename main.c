@@ -1,49 +1,45 @@
+/**
+* @file main.c
+* @brief Tester programme
+* @author Hejer Ferjani
+* @version 1.0
+* @date Juin 01, 2020
+*
+* Tester programme pour Vitesse Acceleration
+*
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL/SDL.h>
-#include <SDL/SDL_mixer.h>
 #include "SDL/SDL_image.h"
+#include <SDL/SDL_mixer.h>
 #include "background.h"
-#include "Hero.h"
-#include "ennemi.h"
+#include "voiture.h"
 #include "text.h"
 
 int main (void)
 {
-        
-        SDL_Surface *screen;
-        SDL_Surface *over;
-        SDL_Rect position_over;
-   
 
-        int done = 0; 
-        int coll;
-        int distEH;
+        SDL_Surface *screen;
+        Mix_Music *music;
+        Mix_Chunk *son;
+
+        int done = 0;
 	int i=0;
 	int keysHeld[323] = {0}; // everything will be initialized to false
-  
+	Uint32 t_prev,dt=1;
+
         SDL_Event event;
-        TTF_Font *police1 = NULL;
-        TTF_Font *police2 = NULL;
-        
-
-        // Déclaration Structure ;
-        Hero H; 
-        Background Back;
-        Ennemi E;
-        Text txt;
-
-        // Load
-        loadHero(&H);
-        loadBackground(&Back);
-        Load_ennemi(&E);
-        loadFont(&police1,&police2);
-
-        // Initialisation      
-        initBackground(&Back);
-        initialiser_hero(&H);
-        initialiserennemi(&E);
-        initText(&txt);
+	TTF_Font *police = NULL;
+	
+        // Déclaration Structure 
+        Voiture car;
+	Background Back;
+	Text txt;
+        Time time;
+         
 
         // INIT_VIDEO
         if(SDL_Init(SDL_INIT_VIDEO)!=0)
@@ -55,34 +51,61 @@ int main (void)
 
         // Creation screen
 
-        screen=SDL_SetVideoMode(1600,600,32,SDL_HWSURFACE|SDL_DOUBLEBUF);
+        screen=SDL_SetVideoMode(SCREEN_W,SCREEN_H,32,SDL_HWSURFACE|SDL_DOUBLEBUF);
         if(screen==NULL)
         {
                 printf("Unable to set video mode : %s",SDL_GetError());
                 return 1;
         }
-        
-        // game over
-     
-        over=IMG_Load("gameover.png");
-        if(over==NULL)
-        {
-        printf("Unable to load over: %s\n",SDL_GetError());
-        return 1;
-        }
-        position_over.x=500;
-        position_over.y=40;
 
-        // program Game loop
-	 SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,SDL_DEFAULT_REPEAT_INTERVAL);
-	   
-            while(!done) {
 
+        //music
+
+        if(Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,MIX_DEFAULT_CHANNELS,1024)==-1)
+        {printf("%s",Mix_GetError());}
+
+
+        music=Mix_LoadMUS("music.mp3");
+        //Mix_PlayMusic(music,-1);
+
+        //son bref
+        son = Mix_LoadWAV("son.wav");
+
+
+        // Load
+	loadVoitureImages(&car);
+	loadBackground(&Back);	
+	loadFont(&police);
+
+
+        // Initialisation      
+	initBackground(&Back);
+	initVoiture(&car);
+	initText(&txt);
+        initTemps(&time);
+
+
+	// program Game loop
+	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,SDL_DEFAULT_REPEAT_INTERVAL);
+	
+            while(!done) {	
+             t_prev = SDL_GetTicks(); //au début de la game loop
+              if(car.vitesse>0)
+                {       //when moving
+			car.acceleration=-0.001; //frottement + vent
+			i+=1;
+			car.move=1;
+		}
+
+		if(car.vitesse <0) {
+			car.acceleration=0;
+			car.vitesse=0;
+			car.move=0;
+		}
 		while (SDL_PollEvent(&event)) 
                     {
 			
-		      switch (event.type) {                       
-
+			switch (event.type) {
 				
 			case SDL_QUIT:
 				done = 1;
@@ -93,69 +116,52 @@ int main (void)
 			case SDL_KEYUP:
 				keysHeld[event.key.keysym.sym] = 0;
 				break;
-			
-                        }
-
+			}
 			// exit if ESCAPE is pressed
 			if (keysHeld[SDLK_ESCAPE])
 				done = 1;
 			if(keysHeld[SDLK_RIGHT]) 
-                        {    
-    
-                             MoveheroR(&H,&Back); // Move Right
-                             animateheroR(&H);
+                        {
+                                car.acceleration+=0.005;
+				
 			}
                         
                         if  (keysHeld[SDLK_LEFT])
-                        {    
-
-                             MoveheroL(&H,&Back); // Move Left
-                             animateheroL(&H);
-                             
-			}
-
-               
-                        if(keysHeld[SDLK_a]) 
-                        {    
-    
-                             MoveheroR(&H,&Back); // attack right
-                             attackR(&H);
+                        {
+                                car.acceleration-=0.001; //Mix_PlayChannel(-1, son, 0);
+				
 			}
                         
-                        if  (keysHeld[SDLK_z])
-                        {    
 
-                             MoveheroL(&H,&Back); // attack Left
-                             attackL(&H);
-                             
-			}               
+		} 
 
-		}
-
-                //update l'etat de collision hero/ennemi
-                coll=((H.posimage.x+Hero_WIDTH) >= E.positionAbsolue.x) &&(H.posimage.x <= (E.positionAbsolue.x +Ennemi_WIDTH));
-
-                Hero_Vie(&H,&coll);
-                updateEnnemi(&E,H.posimage,&distEH);                        
-		//Blit Hero et Background et Ennemi et Text
-                
-                blitBackground(&Back,screen);
-                if (H.vie==0) {SDL_BlitSurface(over, &(Back.back_Pos), screen,&position_over);}
-                blithero(H,screen);
-                if (H.vie!=0) {blit_Ennemi(E,screen);}
-                Afficher_Text(police1,police2,&txt,screen,H,distEH); 
-		SDL_Flip(screen);
+		i=i%4;
 		
 
+		//Blit Voiture et Background
+		if(!car.move)
+			i=0;
+                blitBackground(&Back,screen);
+                moveVoiture(&car,&Back,dt);
+		SDL_BlitSurface(car.image[i],NULL,screen,&car.position);
+
+                Afficher_Text(police,&txt,screen,car,Back,&time,dt);
+
+		SDL_Flip(screen);
+
+
+		dt=SDL_GetTicks()-t_prev; //à la fin de la game loop
+                if(1000/FPS > dt)
+                SDL_Delay(1000/FPS - dt); //pour avoir un FPS constant
+		
+		
 	}
 
-	// Liberation memoire
-      
+	                
+
+	freeVoiture(&car);
 	freeBackground(&Back);
-        free_Hero(&H);
-        free_Ennemi(&E);
-        freeFont(&police1);
-        freeFont(&police2);
+	freeFont(&police);
 
 	return 0;
 

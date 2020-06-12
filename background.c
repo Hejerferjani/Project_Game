@@ -1,22 +1,50 @@
-#include  "background.h"
-#include <SDL/SDL_image.h>
+/**
+* @file background.c
+* @brief Tester programme
+* @author Hejer
+* @version 1.0
+* @date Juin 01, 2020
+*
+* devellopment des fonctions 
+*
+*/
 
-#define SCREEN_W 1600
-#define SCREEN_H 600
+#include "background.h"
+#include  "text.h"
+
+
+/**
+* @brief Load Background Back.
+* @param back le background
+* @return Rien
+*/
 
 void loadBackground(Background *Back)
 {
 	
         // load background
 	
-        Back->back_Img = IMG_Load("background.png");
+        Back->back_Img = SDL_LoadBMP("background.bmp");
 
 	if (Back->back_Img == NULL) {
            printf("Erreuer Chargement Background Images\n");
 	}
 
 
+	Back->back_Img2 = SDL_LoadBMP("background.bmp");
+
+	if (Back->back_Img2 == NULL) {
+            printf("Erreuer Chargement Background Images\n");
+	}
+
 }
+
+
+/**
+* @brief initialiser Background Back.
+* @param back le background
+* @return Rien
+*/
 
 
 void initBackground(Background *Back)
@@ -29,6 +57,35 @@ void initBackground(Background *Back)
 
 }
 
+/**
+* @brief Afficher le background back .
+* @param scren the screen
+* @param back the background
+* @return rien
+*/
+
+void blitBackground(Background*Back,SDL_Surface *screen)
+{
+
+	if(Back->back_Pos.x>Back->back_Img->w-SCREEN_W)
+
+		Back->back_Pos.x=0;
+	
+        if(Back->back_Pos.x<0)
+
+		Back->back_Pos.x=Back->back_Img->w-SCREEN_W;
+
+	SDL_BlitSurface(Back->back_Img, &(Back->back_Pos), screen,NULL); 
+
+
+}
+
+
+/**
+* @brief Liberer la surface 
+* @param back the background
+* @return rien
+*/
 
 void freeBackground(Background *Back)
 {
@@ -36,17 +93,6 @@ void freeBackground(Background *Back)
  SDL_FreeSurface(Back->back_Img);
 
 }
-
-
-void blitBackground(Background*Back,SDL_Surface *screen)
-{
-
- SDL_BlitSurface(Back->back_Img, &(Back->back_Pos), screen,NULL); 
-
-}
-
-
-
 
 
 
