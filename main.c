@@ -1,165 +1,201 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <SDL/SDL.h>
+#include <SDL/SDL_ttf.h>
 #include <SDL/SDL_mixer.h>
-#include "SDL/SDL_image.h"
-#include "background.h"
-#include "Hero.h"
-#include "ennemi.h"
-#include "text.h"
+#include <SDL/SDL_image.h>
+#include "enigme.h"
 
-int main (void)
+
+int main()
 {
-        
-        SDL_Surface *screen;
-        SDL_Surface *over;
-        SDL_Rect position_over;
-   
 
-        int done = 0; 
-        int coll;
-        int distEH;
-	int i=0;
-	int keysHeld[323] = {0}; // everything will be initialized to false
-  
-        SDL_Event event;
-        TTF_Font *police1 = NULL;
-        TTF_Font *police2 = NULL;
-        
 
-        // Déclaration Structure ;
-        Hero H; 
-        Background Back;
-        Ennemi E;
-        Text txt;
+// Declaration
 
-        // Load
-        loadHero(&H);
-        loadBackground(&Back);
-        Load_ennemi(&E);
-        loadFont(&police1,&police2);
+SDL_Surface *screen;
+SDL_Surface *background;
+SDL_Surface *passed;
+SDL_Surface *failed;
+Mix_Chunk *bip;
 
-        // Initialisation      
-        initBackground(&Back);
-        initialiser_hero(&H);
-        initialiserennemi(&E);
-        initText(&txt);
+SDL_Rect position_passed;
+SDL_Rect position_failed;
+SDL_Rect positionbackground;
 
-        // INIT_VIDEO
-        if(SDL_Init(SDL_INIT_VIDEO)!=0)
-        {
+
+char solution;
+char pause;
+int done=1;
+int r=-1,res;
+int k,x;
+int a=0;
+int b=0;
+
+enigme e;
+
+if(Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,MIX_DEFAULT_CHANNELS,1024)==-1)
+{
+	printf("%s",Mix_GetError());
+}
+bip = Mix_LoadWAV("mus.wav");
+
+if(SDL_Init(SDL_INIT_VIDEO)!=0)
+    {
         printf("Unable to inizialize SDL: %s \n",SDL_GetError());
         return 1;
-        }
+    }
 
 
-        // Creation screen
 
-        screen=SDL_SetVideoMode(1600,600,32,SDL_HWSURFACE|SDL_DOUBLEBUF);
-        if(screen==NULL)
-        {
-                printf("Unable to set video mode : %s",SDL_GetError());
-                return 1;
-        }
-        
-        // game over
-     
-        over=IMG_Load("gameover.png");
-        if(over==NULL)
-        {
-        printf("Unable to load over: %s\n",SDL_GetError());
+// Creation screen
+
+screen=SDL_SetVideoMode(1300,800,32,SDL_HWSURFACE|SDL_DOUBLEBUF);
+SDL_FillRect (screen,NULL,SDL_MapRGB(screen->format,128,0,0));
+
+    if(screen==NULL)
+    {
+        printf("Unable to set video mode : %s",SDL_GetError());
         return 1;
-        }
-        position_over.x=500;
-        position_over.y=40;
+    }
 
-        // program Game loop
-	 SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,SDL_DEFAULT_REPEAT_INTERVAL);
-	   
-            while(!done) {
 
-		while (SDL_PollEvent(&event)) 
-                    {
-			
-		      switch (event.type) {                       
 
-				
-			case SDL_QUIT:
-				done = 1;
-				break;
-			case SDL_KEYDOWN:
-				keysHeld[event.key.keysym.sym] = 1;
-				break;
-			case SDL_KEYUP:
-				keysHeld[event.key.keysym.sym] = 0;
-				break;
-			
-                        }
-
-			// exit if ESCAPE is pressed
-			if (keysHeld[SDLK_ESCAPE])
-				done = 1;
-			if(keysHeld[SDLK_RIGHT]) 
-                        {    
+// Ajouter background
     
-                             MoveheroR(&H,&Back); // Move Right
-                             animateheroR(&H);
-			}
-                        
-                        if  (keysHeld[SDLK_LEFT])
-                        {    
+  background=IMG_Load("back.png");
+    if(background==NULL)
+    {
+        printf("Unable to load background: %s\n",SDL_GetError());
+        return 1;
+    }
+    positionbackground.x=0;
+    positionbackground.y=0;
 
-                             MoveheroL(&H,&Back); // Move Left
-                             animateheroL(&H);
-                             
-			}
 
-               
-                        if(keysHeld[SDLK_a]) 
-                        {    
+// image passed
+
+    passed=IMG_Load("passed.png");
+    if(passed==NULL)
+    {
+        printf("Unable to load passed : %s\n",SDL_GetError());
+        return 1;
+    }
     
-                             MoveheroR(&H,&Back); // attack right
-                             attackR(&H);
-			}
-                        
-                        if  (keysHeld[SDLK_z])
-                        {    
+   position_passed.x=235;
+   position_passed.y=100;
 
-                             MoveheroL(&H,&Back); // attack Left
-                             attackL(&H);
-                             
-			}               
 
-		}
+// image failed
 
-                //update l'etat de collision hero/ennemi
-                coll=((H.posimage.x+Hero_WIDTH) >= E.positionAbsolue.x) &&(H.posimage.x <= (E.positionAbsolue.x +Ennemi_WIDTH));
+    failed=IMG_Load("failed.png");
+    if(failed==NULL)
+    {
+        printf("Unable to load failed : %s\n",SDL_GetError());
+        return 1;
+    }
+    
+   position_failed.x=235;
+   position_failed.y=100;
 
-                Hero_Vie(&H,&coll);
-                updateEnnemi(&E,H.posimage,&distEH);                        
-		//Blit Hero et Background et Ennemi et Text
-                
-                blitBackground(&Back,screen);
-                if (H.vie==0) {SDL_BlitSurface(over, &(Back.back_Pos), screen,&position_over);}
-                blithero(H,screen);
-                if (H.vie!=0) {blit_Ennemi(E,screen);}
-                Afficher_Text(police1,police2,&txt,screen,H,distEH); 
-		SDL_Flip(screen);
-		
 
-	}
+init_enigme(&e,"fichier.txt");
 
-	// Liberation memoire
-      
-	freeBackground(&Back);
-        free_Hero(&H);
-        free_Ennemi(&E);
-        freeFont(&police1);
-        freeFont(&police2);
+solution=return_solution("fichier.txt",&e);
 
-	return 0;
+ 
+while(done){
+
+SDL_Event event;
+
+SDL_BlitSurface(background,NULL,screen,&positionbackground);
+
+afficher_enigme(screen,"fichier.txt",&e);
+
+
+while(SDL_PollEvent(&event))
+{switch(event.type)
+  {
+
+
+case SDL_QUIT:
+  {done=0;
+break;}
+
+case SDL_KEYDOWN:
+{
+  
+if(event.key.keysym.sym==SDLK_ESCAPE)
+{ done=0;
+break;
+}}
+
+
+          case SDL_MOUSEBUTTONDOWN:
+             {
+              a=event.button.x;
+              b=event.button.y ;
+
+              r=resolution ("fichier.txt",&e,screen,&a,&b,solution);
+              
+           break;
+             }
+
+
+         case SDL_MOUSEBUTTONUP:
+             {
+              a=event.button.x;
+              b=event.button.y ;
+
+              r=resolution ("fichier.txt",&e,screen,&a,&b,solution);
+              
+         break;
+             }
+
+}
+
+if(r==0)
+ 
+{
+ Mix_PlayChannel(1, bip,0);
+SDL_BlitSurface(failed,&positionbackground,screen,&position_failed);
+
+SDL_Delay(200);
+done=0;
+}
+
+
+else if (r==1)
+
+{
+Mix_PlayChannel(1, bip,0);
+SDL_BlitSurface(passed,&positionbackground,screen,&position_passed);
+SDL_Delay(200);
+done=0;
 
 }
 
 
+SDL_Flip(screen);
 
+}
+}
+
+
+
+
+// Liberation memoire
+
+
+SDL_FreeSurface(background);
+SDL_Quit();
+SDL_Delay(10);
+pause=getchar();
+
+return 0;
+
+}
+        
+    
